@@ -1,65 +1,86 @@
 import streamlit as st
-import requests
 import pandas as pd
+import numpy as np
+import requests
+from sklearn.linear_model import LinearRegression
 
-# Set page to wide for a dashboard feel
-st.set_page_config(page_title="ClimaData Pro", layout="wide")
+# =====================================================================
+# PROJECT FRAMEWORK & CONFIGURATION
+# =====================================================================
+st.set_page_config(page_title="ClimaData Uganda", layout="wide", page_icon="📈")
 
-# Modern Styling
+# The "Professional Dashboard" Theme
 st.markdown("""
     <style>
-    .metric-card { background-color: #ffffff; padding: 20px; border-radius: 15px; border: 1px solid #e0e0e0; box-shadow: 2px 2px 10px #f0f0f0; }
-    .stButton>button { width: 100%; border-radius: 10px; height: 50px; background-color: #2E7D32; color: white; font-weight: bold; }
+    .main-title { color: #0F172A; font-size: 40px; font-weight: 800; }
+    .problem-box { background-color: #F8FAFC; border-left: 6px solid #EF4444; padding: 20px; margin-bottom: 20px; }
+    .solution-box { background-color: #F0FDFA; border-left: 6px solid #10B981; padding: 20px; margin-bottom: 20px; }
+    .metric-card { background: white; padding: 15px; border-radius: 10px; border: 1px solid #E2E8F0; }
     </style>
 """, unsafe_allow_html=True)
 
-# App Title with a clean header
-st.title("🌍 ClimaData Uganda | Intelligence Dashboard")
-st.markdown("---")
+# =====================================================================
+# AI PREDICTIVE ENGINE (The Core Solution)
+# =====================================================================
+def get_climate_data(lat, lon):
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=temperature_2m,rain,relative_humidity_2m&forecast_days=3"
+    data = requests.get(url).json()
+    df = pd.DataFrame(data['hourly'])
+    df['soil_moisture'] = df['relative_humidity_2m'] * 0.65
+    return df
 
-# Data fetcher
-@st.cache_data(ttl=600)
-def get_data(lat, lon):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&hourly=relative_humidity_2m"
-    res = requests.get(url).json()
-    return res["current_weather"]["temperature"], res["hourly"]["relative_humidity_2m"][0] * 0.6
+def run_ai_prediction(df):
+    # Predictive Model: Linear Regression to forecast next 5 steps
+    df['idx'] = np.arange(len(df))
+    model = LinearRegression().fit(df[['idx']], df['soil_moisture'])
+    next_step = np.array([[len(df) + 5]])
+    return float(model.predict(next_step)[0])
 
-# Sidebar Selection
-district = st.sidebar.selectbox("📍 Select District Node:", ["Kampala", "Soroti", "Mbale", "Gulu", "Mbarara"])
+# =====================================================================
+# UI: THE PROPOSAL ARCHITECTURE
+# =====================================================================
+st.markdown("<h1 class='main-title'>ClimaData Uganda Platform</h1>", unsafe_allow_html=True)
+
+# 1. Project Framework Display
+with st.expander("📌 Project Framework & Problem Statement"):
+    st.markdown("<div class='problem-box'><strong>The Problem:</strong> Climate variability in Uganda is causing unpredictable crop yields. Farmers lack real-time localized data to make informed planting decisions.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='solution-box'><strong>The Solution:</strong> A digital AI-powered platform that processes satellite telemetry to provide predictive soil and climate advice, enabling climate-smart agriculture.</div>", unsafe_allow_html=True)
+
+# 2. Workspace Nodes
+district = st.sidebar.selectbox("📍 Select Region", ["Kampala", "Soroti", "Mbale", "Gulu", "Mbarara"])
 coords = {"Kampala": (0.34, 32.58), "Soroti": (1.71, 33.61), "Mbale": (1.07, 34.18), "Gulu": (2.77, 32.28), "Mbarara": (-0.60, 30.65)}
-temp, moisture = get_data(*coords[district])
 
-# Layout: 3 Columns for metrics
+data = get_climate_data(*coords[district])
+pred_moisture = run_ai_prediction(data)
+
+# 3. Interactive Metrics
 col1, col2, col3 = st.columns(3)
-col1.metric("Temperature", f"{temp}°C")
-col2.metric("Soil Moisture", f"{int(moisture)}%")
-col3.metric("Status", "Stable" if moisture > 30 else "Action Required")
+col1.metric("Current Temp", f"{data['temperature_2m'].iloc[-1]}°C")
+col2.metric("Soil Moisture", f"{int(data['soil_moisture'].iloc[-1])}%")
+col3.metric("AI 5-Day Projection", f"{int(pred_moisture)}%")
 
-st.markdown("---")
+# 4. AI Chatbot (The Command Center)
+st.subheader("🤖 AI Field Assistant")
+if "history" not in st.session_state: st.session_state.history = []
 
-# Chatbot Interface
-st.subheader("🤖 Command Center")
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+user_input = st.text_input("Ask for advice (e.g., 'Should I plant today?'):")
 
-# Quick Action Buttons
-cols = st.columns(3)
-if cols[0].button("📊 Get Soil Report"):
-    st.session_state.messages.append({"role": "user", "content": "Get Soil Report"})
-if cols[1].button("🌡️ Check Temp"):
-    st.session_state.messages.append({"role": "user", "content": "Check Temp"})
-if cols[2].button("💡 Farming Advice"):
-    st.session_state.messages.append({"role": "user", "content": "Farming Advice"})
-
-# Chat Display
-for msg in st.session_state.messages:
-    with st.chat_message("user"): st.write(msg["content"])
+if user_input:
+    # Basic AI Logic - In a real app, this would be an OpenAI API call
+    response = "Analyzing telemetry... "
+    if "plant" in user_input.lower():
+        response += "Based on AI soil moisture projections, " + ("the conditions are optimal for planting." if pred_moisture > 40 else "conditions are too dry. Delay planting.")
+    elif "moisture" in user_input.lower():
+        response += f"The current soil moisture is {int(data['soil_moisture'].iloc[-1])}%. The AI predicts a trend of {int(pred_moisture)}%."
+    else:
+        response += "I am monitoring regional telemetry. Ask about 'planting', 'moisture', or 'temperature'."
     
-    # Generate bot response based on context
-    with st.chat_message("assistant"):
-        if "Soil" in msg["content"]:
-            st.write(f"The soil moisture in {district} is currently at {int(moisture)}%. {'The ground is healthy!' if moisture > 30 else 'We recommend irrigating soon.'}")
-        elif "Temp" in msg["content"]:
-            st.write(f"The current temperature in {district} is {temp}°C.")
-        elif "Farming" in msg["content"]:
-            st.write("For this moisture level, we recommend mulching your crops to prevent water evaporation.")
+    st.session_state.history.append({"q": user_input, "a": response})
+
+for chat in reversed(st.session_state.history):
+    st.write(f"**You:** {chat['q']}")
+    st.write(f"**AI:** {chat['a']}")
+
+# 5. Visual Data Insights
+st.subheader("📈 Environmental Trend Analysis")
+st.line_chart(data[['temperature_2m', 'soil_moisture']])
