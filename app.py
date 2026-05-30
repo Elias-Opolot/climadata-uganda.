@@ -1,75 +1,65 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
 import requests
-from sklearn.linear_model import LinearRegression
+import pandas as pd
 
-# =====================================================================
-# CLIMADATA UGANDA: PROFESSIONAL CORE
-# =====================================================================
-st.set_page_config(page_title="ClimaData Uganda", page_icon="🌾", layout="centered")
+# Set page to wide for a dashboard feel
+st.set_page_config(page_title="ClimaData Pro", layout="wide")
 
-# Custom Styling for a Professional, Clean Look
+# Modern Styling
 st.markdown("""
     <style>
-    .main-box { background-color: #F1F5F9; padding: 20px; border-radius: 10px; border: 1px solid #CBD5E1; }
-    .status-header { font-size: 22px; font-weight: bold; color: #1E293B; margin-bottom: 10px; }
-    .action-guide { font-size: 16px; color: #475569; }
+    .metric-card { background-color: #ffffff; padding: 20px; border-radius: 15px; border: 1px solid #e0e0e0; box-shadow: 2px 2px 10px #f0f0f0; }
+    .stButton>button { width: 100%; border-radius: 10px; height: 50px; background-color: #2E7D32; color: white; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🌾 ClimaData Uganda")
-st.subheader("Field Diagnostic & Advisory Platform")
+# App Title with a clean header
+st.title("🌍 ClimaData Uganda | Intelligence Dashboard")
+st.markdown("---")
 
-# Simple Data Fetcher
+# Data fetcher
 @st.cache_data(ttl=600)
 def get_data(lat, lon):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&hourly=temperature_2m,relative_humidity_2m&forecast_days=1"
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&hourly=relative_humidity_2m"
     res = requests.get(url).json()
-    temp = res["current_weather"]["temperature"]
-    moisture = res["hourly"]["relative_humidity_2m"][0] * 0.6
-    return temp, moisture
+    return res["current_weather"]["temperature"], res["hourly"]["relative_humidity_2m"][0] * 0.6
 
-district = st.selectbox("Select Your District:", ["Kampala", "Soroti", "Mbale", "Gulu", "Mbarara"])
+# Sidebar Selection
+district = st.sidebar.selectbox("📍 Select District Node:", ["Kampala", "Soroti", "Mbale", "Gulu", "Mbarara"])
 coords = {"Kampala": (0.34, 32.58), "Soroti": (1.71, 33.61), "Mbale": (1.07, 34.18), "Gulu": (2.77, 32.28), "Mbarara": (-0.60, 30.65)}
 temp, moisture = get_data(*coords[district])
 
-# =====================================================================
-# PROFESSIONAL DIAGNOSTIC ENGINE
-# =====================================================================
-st.markdown("---")
-st.write(f"### Current Field Status: **{district}**")
-
-# Use simple color-coded boxes instead of confusing images
-def show_status(status, message, color):
-    st.markdown(f"""
-        <div class='main-box' style='border-left: 10px solid {color};'>
-            <div class='status-header'>{status}</div>
-            <div class='action-guide'>{message}</div>
-        </div>
-    """, unsafe_allow_html=True)
-
-if moisture > 50:
-    show_status("🟢 Ground is Healthy", "The soil has enough water. No extra work is needed today.", "#22C55E")
-elif 30 <= moisture <= 50:
-    show_status("🟡 Ground is Drying", "The soil is losing moisture. Consider adding mulch around your crops to protect them from the sun.", "#EAB308")
-else:
-    show_status("🔴 Critical Dryness", "The ground is too dry. You must irrigate or provide shade immediately to prevent crop loss.", "#EF4444")
-
-# =====================================================================
-# INTERACTIVE CHAT NODE
-# =====================================================================
-st.markdown("---")
-st.write("### 💬 Field Assistant")
-user_query = st.text_input("Ask a question about your farm:", placeholder="e.g., Is the ground dry?")
-
-if user_query:
-    if "dry" in user_query.lower() or "moisture" in user_query.lower():
-        st.write(f"**Assistant:** Current moisture level is {int(moisture)}%. Based on our sensors, " + ("the soil is stable." if moisture > 30 else "you need to irrigate immediately."))
-    elif "temperature" in user_query.lower() or "hot" in user_query.lower():
-        st.write(f"**Assistant:** The current temperature is {temp}°C.")
-    else:
-        st.write("**Assistant:** Please ask about 'soil moisture' or 'temperature' to get a direct reading.")
+# Layout: 3 Columns for metrics
+col1, col2, col3 = st.columns(3)
+col1.metric("Temperature", f"{temp}°C")
+col2.metric("Soil Moisture", f"{int(moisture)}%")
+col3.metric("Status", "Stable" if moisture > 30 else "Action Required")
 
 st.markdown("---")
-st.caption("ClimaData Uganda | Real-time agricultural intelligence.")
+
+# Chatbot Interface
+st.subheader("🤖 Command Center")
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Quick Action Buttons
+cols = st.columns(3)
+if cols[0].button("📊 Get Soil Report"):
+    st.session_state.messages.append({"role": "user", "content": "Get Soil Report"})
+if cols[1].button("🌡️ Check Temp"):
+    st.session_state.messages.append({"role": "user", "content": "Check Temp"})
+if cols[2].button("💡 Farming Advice"):
+    st.session_state.messages.append({"role": "user", "content": "Farming Advice"})
+
+# Chat Display
+for msg in st.session_state.messages:
+    with st.chat_message("user"): st.write(msg["content"])
+    
+    # Generate bot response based on context
+    with st.chat_message("assistant"):
+        if "Soil" in msg["content"]:
+            st.write(f"The soil moisture in {district} is currently at {int(moisture)}%. {'The ground is healthy!' if moisture > 30 else 'We recommend irrigating soon.'}")
+        elif "Temp" in msg["content"]:
+            st.write(f"The current temperature in {district} is {temp}°C.")
+        elif "Farming" in msg["content"]:
+            st.write("For this moisture level, we recommend mulching your crops to prevent water evaporation.")
