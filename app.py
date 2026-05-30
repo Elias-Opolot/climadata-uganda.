@@ -1,79 +1,37 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
 import requests
-from sklearn.linear_model import LinearRegression
 
-# =====================================================================
-# PROJECT IDENTITY: CLIMADATA UGANDA 2026
-# =====================================================================
-st.set_page_config(page_title="ClimaData | CCIC 2026", layout="wide", page_icon="🌍")
+# Layout: Mobile-first design (High contrast, big buttons)
+st.set_page_config(page_title="ClimaData Farmer Hub", layout="centered")
 
 st.markdown("""
     <style>
-    .banner { background: linear-gradient(90deg, #065F46, #047857); padding: 30px; border-radius: 15px; color: white; text-align: center; }
-    .card { background: #FFFFFF; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .big-font { font-size: 24px !important; font-weight: bold; }
+    .stButton>button { width: 100%; height: 80px; font-size: 20px; border-radius: 15px; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='banner'><h1>CLIMADATA UGANDA 2026</h1><p>Digital Innovation for Climate Resilience</p></div>", unsafe_allow_html=True)
+st.title("🌾 ClimaData Uganda")
+st.write("### What do you want to do today?")
 
-# =====================================================================
-# AI LOGIC & TELEMETRY ENGINE
-# =====================================================================
-@st.cache_data(ttl=1800)
-def fetch_climate_data(lat, lon):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=temperature_2m,rain,relative_humidity_2m&forecast_days=3"
-    data = requests.get(url).json()
-    df = pd.DataFrame(data['hourly'])
-    df['soil_moisture'] = df['relative_humidity_2m'] * 0.65
-    return df
+# --- ACTION BUTTONS (The core interaction) ---
+col1, col2 = st.columns(2)
 
-def get_ai_prediction(df):
-    df['idx'] = np.arange(len(df))
-    model = LinearRegression().fit(df[['idx']], df['soil_moisture'])
-    # Forecast 48 hours ahead
-    future_index = np.array([[len(df) + 48]])
-    return float(model.predict(future_index)[0])
+if col1.button("🌱 Should I Plant?"):
+    st.session_state.action = "PLANT"
+if col2.button("💧 Check Soil"):
+    st.session_state.action = "SOIL"
 
-# =====================================================================
-# UI: INTERACTIVE DASHBOARD
-# =====================================================================
-col1, col2 = st.columns([1, 2])
-
-with col1:
-    st.subheader("📍 Innovation Node")
-    district = st.selectbox("Select Target Region:", ["Kampala", "Soroti", "Mbale", "Gulu", "Mbarara"])
-    coords = {"Kampala": (0.34, 32.58), "Soroti": (1.71, 33.61), "Mbale": (1.07, 34.18), "Gulu": (2.77, 32.28), "Mbarara": (-0.60, 30.65)}
-    
-    df = fetch_climate_data(*coords[district])
-    pred = get_ai_prediction(df)
-    
-    st.markdown(f"<div class='card'><strong>AI Forecast (48h):</strong> {int(pred)}% Soil Moisture</div>", unsafe_allow_html=True)
-    
-with col2:
-    st.subheader("🤖 AI Climate Diagnostic Assistant")
-    st.info("Ask about planting windows, soil risk, or drought probabilities.")
-    
-    query = st.chat_input("Analyze climate risk for this node...")
-    
-    if query:
-        # Diagnostic Logic
-        if "plant" in query.lower():
-            advice = "🟢 Sowing window is open" if pred > 40 else "🔴 High risk of crop failure. Delay planting."
-            st.write(f"**AI Diagnostic:** {advice} based on a projected moisture level of {int(pred)}%.")
-        elif "risk" in query.lower():
-            st.write(f"**Risk Analysis:** Projecting moisture stability for {district}. Current drift trend is {'positive' if pred > df['soil_moisture'].iloc[-1] else 'negative'}.")
-        else:
-            st.write("I am monitoring regional telemetry. Ask specifically about 'planting feasibility' or 'drought risk'.")
-
-# =====================================================================
-# PROJECT ALIGNMENT (FOR JURY EVALUATION)
-# =====================================================================
-st.markdown("---")
-st.subheader("💡 Challenge Alignment: Climate Tech & Digital Innovation")
-st.write("""
-This solution leverages real-time satellite telemetry and Linear Regression modeling to 
-bridge the information gap in Ugandan agriculture. By transforming raw environmental data into 
-actionable insights, we reduce crop failure rates due to climate variability.
-""")
+# --- SMART FEEDBACK ENGINE ---
+if "action" in st.session_state:
+    # This logic mimics the AI checking the environment
+    # In your real app, this connects to the API/AI model
+    if st.session_state.action == "PLANT":
+        st.success("🟢 GO AHEAD! The soil has enough moisture for maize.")
+    else:
+        st.warning("🟡 SOIL IS DRY. Please add mulch (grass/leaves) to keep the roots cool.")
+        
+    st.write("---")
+    st.write("### 🤖 Ask your Assistant:")
+    if st.button("🎤 Ask about rain?"):
+        st.write("AI Assistant: 'No rain is expected in the next 3 days. Prepare for heat.'")
